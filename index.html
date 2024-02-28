@@ -3,116 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Index</title>
-
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.7/axios.min.js" integrity="sha512-NQfB/bDaB8kaSXF8E77JjhHG5PM6XVRxvHzkZiwl3ddWCEPBa23T76MuWSwAJdMGJnmQqM0VeY9kFszsrBEFrQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <title>Authentication Page</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.20.0/axios.min.js" integrity="sha512-quHCp3WbBNkwLfYUMd+KwBAgpVukJu5MncuQaWXgCrfgcxCJAq/fo+oqrRKOj+UKEmyMCG3tb8RB63W+EmrOBg==" crossorigin="anonymous"></script>
 </head>
 <body>
+    
     <div class="container-fluid">
-        <h1 class="row">Login</h1>
+        <h1 class="row">User Login</h1>
         <main>
             <div class="row">
-                <label for="username">Username</label>
-                <input type="text" name="username" id="username">
+                <label for="userField">Username:</label>
+                <input type="text" name="userField" id="userField">
             </div>
             <div class="row">
-                <label for="password">Password</label>
-                <input type="password" name="password" id="password">
+                <label for="passField">Password:</label>
+                <input type="password" name="passField" id="passField">
             </div>
             <div>
-                <button onclick='login()'>Login</button>
-                <button onclick='getDashboard()'>Get Dashboard</button>
-                <button onclick='getSettings()'>Get Settings</button>
+                <button onclick="performLogin()">Authenticate</button>
+                <button onclick="loadDashboard()">Dashboard</button>
+                <button onclick="loadPrices()">Prices</button>
+                <button onclick="loadSettings()">Settings</button>
             </div>
         </main>
     </div>
-    
 
     <script>
-        function login(){
-            const data = {
-                username: document.getElementById('username').value,
-                password: document.getElementById('password').value
+        function performLogin() {
+            const loginInfo = {
+                user: document.getElementById('userField').value,
+                pass: document.getElementById('passField').value,
             };
-            axios.post('/api/login', data)
-                .then(res => {
-                    document.getElementById('username').value = '';
-                    document.getElementById('password').value = '';
-                    if(res && res.data && res.data.success){
-                        const token = res.data.token;
-                        localStorage.setItem('jwt', token);
-                        getDashboard();
-                    }
-                })
+            axios.post('/api/authenticate', loginInfo)
+            .then(response => {
+                console.log(response);
+                document.getElementById('userField').value = '';
+                document.getElementById('passField').value = '';
+                if (response && response.data && response.data.success) {
+                    const sessionToken = response.data.authToken;
+                    localStorage.setItem('userToken', sessionToken); 
+                    loadDashboard();
+                }
+            }).catch(err => {
+                console.log(err);
+                alert('Login Failed');
+            });
         }
 
-        function getDashboard(){
-            if(isTokenExpired()){
-                window.location.href = '/';
-            }
-            const token = localStorage.getItem('jwt');
+        function loadDashboard() {
+            const sessionToken = localStorage.getItem('userToken');
             axios.get('/api/dashboard', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+                headers: {'Authorization': `Bearer ${sessionToken}`}
+            }).then(response => {
+                if (response && response.data && response.data.success) {
+                    document.querySelector('h1.row').textContent = 'User Dashboard';
+                    document.querySelector('main').innerHTML = response.data.dashboardData;
+                    history.pushState({}, 'User Dashboard', '/dashboard');
                 }
-            }).then(res => {
-                if(res && res.data && res.data.success){
-                    document.querySelector('h1.row').innerHTML = 'Dashboard';
-                    document.querySelector('main').innerHTML = res.data.myContent;
-                    history.pushState({page: 'dashboard'}, '', '/api/dashboard');
+            }).catch(error => {
+                if (error.response && error.response.status === 401) {
+                    window.location.replace('/');
                 }
-                else {
-                    localStorage.removeItem('jwt');
-                    window.location.href = '/';
-                }
-            })
+            });
         }
 
-        function getSettings(){
-            if(isTokenExpired()){
-                window.location.href = '/';
-            }
-            const token = localStorage.getItem('jwt');
+        function loadPrices() {
+            const sessionToken = localStorage.getItem('userToken');
+            axios.get('/api/prices', {
+                headers: {'Authorization': `Bearer ${sessionToken}`}
+            }).then(response => {
+                if (response && response.data && response.data.success) {
+                    document.querySelector('h1.row').textContent = 'Prices';
+                    document.querySelector('main').innerHTML = response.data.pricingInfo;
+                    history.pushState({}, 'Prices', '/prices');
+                }
+            }).catch(error => {
+                if (error.response && error.response.status === 401) {
+                    window.location.replace('/');
+                }
+            });
+        }
+
+        function loadSettings() {
+            const sessionToken = localStorage.getItem('userToken');
             axios.get('/api/settings', {
-                headers: {
-                    'Authorization': `Bearer ${token}`
+                headers: {'Authorization': `Bearer ${sessionToken}`}
+            }).then(response => {
+                if (response && response.data && response.data.success) {
+                    document.querySelector('h1.row').textContent = 'User Settings';
+                    document.querySelector('main').innerHTML = response.data.settingsData;
+                    history.pushState({}, 'User Settings', '/settings');
                 }
-            }).then(res => {
-                if(res && res.data && res.data.success){
-                    document.querySelector('h1.row').innerHTML = 'Settings';
-                    document.querySelector('main').innerHTML = res.data.myContent;
-                    history.pushState({page: 'settings'}, '', '/api/settings');
+            }).catch(error => {
+                if (error.response && error.response.status === 401) {
+                    window.location.replace('/');
                 }
-                else {
-                    localStorage.removeItem('jwt');
-                    window.location.href = '/';
-                }
-            })
+            });
         }
-
-        window.onpopstate = function (event) {
-            if (event.state && event.state.page === 'dashboard') {
-                getDashboard();
-            } else if (event.state && event.state.page === 'settings') {
-                getSettings();
-            }
-        }
-
-        function isTokenExpired() {
-            const token = localStorage.getItem('jwt');
-            if (token) {
-                const decodedToken = JSON.parse(atob(token.split('.')[1]));
-                const currentTime = Math.floor(Date.now() / 1000);
-                if (decodedToken.exp < currentTime) {
-                    localStorage.removeItem('jwt');
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        window.onload = isTokenExpired();
     </script>
 </body>
 </html>

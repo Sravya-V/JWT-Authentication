@@ -1,91 +1,98 @@
 const express = require('express');
-const app = express();
-
 const bodyParser = require('body-parser');
 const path = require('path');
 const jwt = require('jsonwebtoken');
-const {expressjwt: exjwt} = require('express-jwt');
+const { expressjwt: jwtMiddleware } = require("express-jwt");
 
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-type,Authorization');
+const application = express();
+
+application.use((request, response, next) => {
+    response.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-type,Authorization');
     next();
-})
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true}));
+});
 
-const PORT = 3000;
-const secretKey = "My Secret Key";
-const jwtMW = exjwt({
-    secret: secretKey,
+application.use(bodyParser.json());
+application.use(bodyParser.urlencoded({ extended: true }));
+
+const SERVER_PORT = 3000;
+
+const JWT_SECRET = 'My super secret key';
+const jwtCheck = jwtMiddleware({
+    secret: JWT_SECRET,
     algorithms: ['HS256']
 });
 
-let users = [
+let registeredUsers = [
     {
-        id: 1,
-        username: 'sravya',
-        password: 'srav@123'
+        userId: 1, 
+        userLogin:'Sravya',
+        userPassword:'164'
     },
     {
-        id: 2,
-        username: 'vemuri',
-        password: 'vem@234'
+        userId: 2,
+        userLogin:'Vemuri',
+        userPassword:'389'
     }
-]
+];
 
-app.get('/api/dashboard', jwtMW, (req, res) => {
-    res.json({
-        success: true,
-        myContent: 'Secret Content that only logged in people can see.' 
-    })
-})
-
-app.get('/api/settings', jwtMW, (req, res) => {
-    res.json({
-        success: true,
-        myContent: 'Settings page that only logged in people can see.' 
-    })
-})
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'))
-})
-
-app.post('/api/login', (req, res) => {
-    const {username, password} = req.body;
-    
-    for(let user of users){
-        if(username == user.username && password == user.password){
-            let token = jwt.sign({id: user.id, username: user.username}, secretKey,{expiresIn: '3m'});
-            res.json({
-                success: true,
-                err: null,
-                token
-            });
-            break;
-        }
-    }
-    res.status(401).json({
-        success: false,
-        token: null,
-        err: 'Username or Password is Incorrect!'
-    })
-})
-
-app.use(function (err, req, res, next){
-    if(err.name === "UnauthorizedError"){
-        res.status(401).json({
+application.post('/api/authenticate', (request, response) => {
+    const { user, pass } = request.body;
+    const users = registeredUsers.find(u => u.userLogin === user && u.userPassword === pass);
+    if (users) {
+        let authToken = jwt.sign({ userId: users.userId, userLogin: users.userLogin }, JWT_SECRET, { expiresIn: '3m' });
+        response.json({
+        
+            success: true,
+            error: null,
+            authToken
+        });
+    } else {
+        response.status(401).json({
             success: false,
-            officalError: err,
-            err: 'Login to view this page!'
-        })
+            authToken: null,
+            error: 'Invalidate credentials'
+        });
     }
-    else{
-        next(err);
-    }
-})
+});
 
-app.listen(PORT, () => {
-    console.log(`Serving on port ${PORT}`)
-})
+application.get('/api/dashboard', jwtCheck, (request, response) => {
+    response.json({
+        success: true,
+        dashboardData: 'Secret content that only logged in people can see!!!'
+    });
+});
+
+application.get('/api/prices', jwtCheck, (request, response) => {
+    response.json({
+        success: true,
+        pricingInfo: 'This is the price $52.99'
+    });
+});
+
+application.get('/api/settings', jwtCheck, (request, response) => {
+    response.json({
+        success: true,
+        settingsData: 'Settings content can be seen once JWT authentication is done'
+    });
+});
+
+application.get('/', (request, response) => {
+    response.sendFile(path.join(__dirname, 'index.html'));
+});
+
+application.use(function (error, request, response, next) {
+    if (error.name === 'UnauthorizedError') {
+        response.status(401).json({
+            success: false,
+            officialError: error,
+            error: 'Invalid token provided'
+        });
+    } else {
+        next(error);
+    }
+});
+
+application.listen(SERVER_PORT, () => {
+    console.log(`Server is running on port ${SERVER_PORT}`);
+});
