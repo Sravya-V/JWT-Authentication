@@ -52,6 +52,9 @@
         }
 
         function loadDashboard() {
+            if(isTokenExpired()){
+                window.location.href = '/';
+            }
             const sessionToken = localStorage.getItem('userToken');
             axios.get('/api/dashboard', {
                 headers: {'Authorization': `Bearer ${sessionToken}`}
@@ -69,6 +72,9 @@
         }
 
         function loadPrices() {
+            if(isTokenExpired()){
+                window.location.href = '/';
+            }
             const sessionToken = localStorage.getItem('userToken');
             axios.get('/api/prices', {
                 headers: {'Authorization': `Bearer ${sessionToken}`}
@@ -86,6 +92,9 @@
         }
 
         function loadSettings() {
+            if(isTokenExpired()){
+                window.location.href = '/';
+            }
             const sessionToken = localStorage.getItem('userToken');
             axios.get('/api/settings', {
                 headers: {'Authorization': `Bearer ${sessionToken}`}
@@ -101,6 +110,20 @@
                 }
             });
         }
+        function isTokenExpired() {
+            const userToken = localStorage.getItem('userToken');
+            if (userToken) {
+                const parsedToken = JSON.parse(atob(userToken.split('.')[1]));
+                const currentTime = Math.floor(Date.now() / 1000);
+                if (parsedToken.exp < currentTime) {
+                    localStorage.removeItem('userToken');
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        window.onload = isTokenExpired();
     </script>
 </body>
 </html>
